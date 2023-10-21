@@ -1,0 +1,20 @@
+[tool.poetry]
+name = "md-analysis-pipeline"
+version = "0.1.0"
+description = ""
+authors = ["Benjamin Bjoern Kroeger <kroegerbe@cip.ifi.lmu.de>"]
+readme = "README.md"
+packages = [{include = "md_analysis_pipeline"}]
+
+[tool.poetry.dependencies]
+python = "^3.10"
+pandas = "^2.0.2"
+seaborn = "^0.12.2"
+scikit-learn = "^1.2.2"
+jupyter = "^1.0.0"
+biopython = "^1.81"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
