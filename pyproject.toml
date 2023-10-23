@@ -13,6 +13,7 @@ seaborn = "^0.12.2"
 scikit-learn = "^1.2.2"
 jupyter = "^1.0.0"
 biopython = "^1.81"
+tqdm = "^4.66.1"
 
 
 [build-system]
