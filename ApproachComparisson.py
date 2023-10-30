@@ -25,4 +25,4 @@ def compare_clustering(clustering1_path:str,clustering2_path:str):
 
 if __name__ == '__main__':
 
-    compare_clustering('output_dir/assinged_clusters_schrö.csv', 'output_dir/assinged_clusters_tmali_max.csv')
+    compare_clustering('output_dir/assinged_clusters_schrö.csv', 'output_dir/assinged_clusters_tmali_min.csv')
