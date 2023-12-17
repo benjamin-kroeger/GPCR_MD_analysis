@@ -4,6 +4,7 @@ import seaborn as sns
 import pandas as pd
 import matplotlib.pyplot as plt
 import re
+#vmd -dispdev text -eofexit < CCC.tcl > output.log
 def compare_clustering(clustering1_path:str,clustering2_path:str):
 
     clustering1 = pd.read_csv(clustering1_path)
@@ -21,7 +22,7 @@ def compare_clustering(clustering1_path:str,clustering2_path:str):
         remove_frames(clustering2)
 
 
-    merged_df = pd.merge(clustering1,clustering2,on=['0'])
+    merged_df = pd.merge(clustering1,clustering2,left_on=clustering1.columns[0],right_on=clustering2.columns[0])
 
     cross_tab = pd.crosstab(merged_df[clustering1_name], merged_df[clustering2_name])
     sns.heatmap(cross_tab, annot=True, fmt='', cmap='YlGnBu')
@@ -39,4 +40,4 @@ def remove_frames(cluster_df_frame:pd.DataFrame):
 
 if __name__ == '__main__':
 
-    compare_clustering('output_dir/assinged_clusters_schrö.csv', 'output_dir/assinged_clusters_tmali_min.csv')
+    compare_clustering('output_dir/assinged_clusters_schrö.csv', 'output_dir/assinged_clusters_vmd.csv')
