@@ -4,7 +4,8 @@ import os
 import re
 import shutil
 import subprocess
-from concurrent.futures import ProcessPoolExecutor, as_completed
+import tempfile
+from concurrent.futures import ProcessPoolExecutor, as_completed, wait
 from datetime import datetime
 from io import StringIO
 
@@ -15,13 +16,123 @@ from Bio import SeqIO
 from tqdm import tqdm
 
 SCHRODINGER = os.environ.get('SCHRODINGER', '/opt/schrodinger2023-2')
-
+DENSITY_MAP_TCL = """
+mol new {0} type pdb
+set atomselect{1} [atomselect {1} "all"]
+volmap density atomselect{1} -res 1.0 -radscale 1.0 -weight mass -o {2}
+"""
+VOLTOOL_TCL ="""
+voltool correlate -i1 {0} -i2 {1}
+"""
 
 class SimilarityAnalyser:
 
     def __init__(self):
         self.tmalign_path = "/home/benjaminkroeger/Documents/Master/Master_2_Semester/Internship/TMalign"
         self.gogo_path = "/home/benjaminkroeger/Downloads/GOGO_master"
+        with open('CCC.tcl', 'r') as tcl_script_handle:
+            self.tcl_script = '\n'.join(tcl_script_handle.readlines())
+
+    def compute_similaritiy_vmd(self, pdb_files: str) -> str:
+        triplet_output_path = 'output_dir/output_triplets_vmd.csv'
+        similarity_output_matrix_path = 'output_dir/output_vmd_simliarity.csv'
+        assert os.path.isdir(pdb_files), "The directory to the pdb files does not exist"
+        tmp_dir = tempfile.TemporaryDirectory()
+        print(tmp_dir.name)
+        files = os.listdir(pdb_files)
+
+        if os.path.exists(triplet_output_path):
+            triplet_df = pd.read_csv(triplet_output_path, header=None)
+        else:
+
+            whole_path_pdb_files = [os.path.join(pdb_files, x) for x in files]
+            density_jobs = []
+            with ProcessPoolExecutor(max_workers=16) as executor:
+                for i in range(0, len(whole_path_pdb_files), 100):
+                    density_jobs.append(executor.submit(self._create_density_maps, whole_path_pdb_files[i:i + 100], tmp_dir))
+
+            wait(density_jobs)
+            print('Created density maps for each pdb file')
+            pairings = []
+            pdb_ids = [x.rstrip('.pdb') for x in files]
+            pdb_ids_sparse = copy.deepcopy(pdb_ids)
+            for id1 in pdb_ids:
+                for id2 in pdb_ids_sparse:
+                    pairings.append((id1,id2))
+
+                pdb_ids_sparse.remove(id1)
+
+            voltool_jobs = []
+            with ProcessPoolExecutor(max_workers=16) as executor:
+                for i in range(0,len(pairings),400):
+
+                    job = executor.submit(self._compute_ccc_from_density,pairings[i:i+400],tmp_dir)
+                    voltool_jobs.append(job)
+
+            result_list = []
+            with open(triplet_output_path, 'w') as f:
+                writer = csv.writer(f)
+                for finished_job in as_completed(voltool_jobs):
+                    result = finished_job.result()
+                    result_list.extend(result)
+                    for entry in result:
+                        writer.writerow(entry)
+
+            triplet_df = pd.DataFrame(data=result_list, index=None, columns=None)
+
+        tmp_dir.cleanup()
+
+        similarity_matrix = self._convert_tripelts_into_matrix(triplet_df)
+        similarity_matrix.to_csv(similarity_output_matrix_path)
+
+        return similarity_output_matrix_path
+
+    def _create_density_maps(self, pdb_files: list[str], tmp_dir):
+        # create density script location and file name
+        density_tcl_script = ''
+        density_tcl_script_hash = abs(hash(''.join(pdb_files)))
+        density_tcl_script_path = os.path.join(tmp_dir.name, f'density_script_{density_tcl_script_hash}.tcl')
+
+        # create the script
+        for i, pdb_file_path in enumerate(pdb_files):
+            density_file_path = os.path.join(tmp_dir.name, os.path.basename(pdb_file_path).rstrip('pdb') + 'dx')
+            density_tcl_script = density_tcl_script + DENSITY_MAP_TCL.format(pdb_file_path, i, density_file_path)
+        # write the script
+        with open(density_tcl_script_path, 'w') as f:
+            f.write(density_tcl_script)
+
+        # execute the script
+        output_path = os.path.join(tmp_dir.name, f"dummy_{density_tcl_script_hash}.log")
+        vmd_cmd = f"vmd -dispdev text -eofexit < {density_tcl_script_path} > {output_path}"
+        self._run_cmdline(vmd_cmd)
+
+    def _compute_ccc_from_density(self,pairings:list[tuple[str,str]], tmpdir) -> list[tuple[str,str,float]]:
+
+        voltool_tcl = ''
+        voltool_script_hash = abs(hash(str(pairings)))
+        voltool_script_path = os.path.join(tmpdir.name,f'voltool_script_{voltool_script_hash}')
+        voltool_script_output_path = os.path.join(tmpdir.name,f'voltool_output_{voltool_script_hash}')
+        for id1,id2 in pairings:
+            path_density_1 = os.path.join(tmpdir.name, f'{id1}.dx')
+            path_density_2 = os.path.join(tmpdir.name, f'{id2}.dx')
+
+            voltool_tcl = voltool_tcl + VOLTOOL_TCL.format(path_density_1,path_density_2)
+
+        with open(voltool_script_path,'w') as f:
+            f.write(voltool_tcl)
+
+        vmd_cmd = f"vmd -dispdev text -eofexit < {voltool_script_path} > {voltool_script_output_path}"
+        self._run_cmdline(vmd_cmd)
+        scores = self._parse_vmd_output(voltool_script_output_path)
+
+        return [(pair[0],pair[1],score) for pair,score in zip(pairings,scores)]
+
+    def _parse_vmd_output(self, vmd_output_path: str) -> list[float]:
+        with open(vmd_output_path, 'r') as vmd_output_handle:
+            output = ''.join(vmd_output_handle.readlines())
+            scores = re.findall(r'^\d\.\d+',output,re.MULTILINE)
+
+            return [float(x) for x in scores]
 
     def compute_similarity_tmalign(self, pdb_files: str) -> str:
         triplet_output_path = 'output_dir/output_triplets_min.csv'
@@ -72,6 +183,11 @@ class SimilarityAnalyser:
         triplet_df = triplet_df.reindex(columns=colnames, index=colnames)
 
         similarity_matrix = triplet_df.add(triplet_df[~triplet_df.isna()].T, fill_value=0)
+
+        if similarity_matrix.iloc[0,0] > 1:
+            for i in range(min(similarity_matrix.shape)):
+                similarity_matrix.iat[i, i] = 1
+
         return similarity_matrix
 
     def compute_similarity_go(self, pdb_file_dir: str):
@@ -96,9 +212,9 @@ class SimilarityAnalyser:
 
         gogo_sim_matrix = self._convert_tripelts_into_matrix(gogo_output_triplets)
         for i in range(min(gogo_sim_matrix.shape)):
-            gogo_sim_matrix.iat[i,i] = 1
-        gogo_sim_matrix.dropna(axis=0,thresh=len(gogo_sim_matrix)//2,inplace=True)
-        gogo_sim_matrix.dropna(axis=1, thresh=len(gogo_sim_matrix)//2,inplace=True)
+            gogo_sim_matrix.iat[i, i] = 1
+        gogo_sim_matrix.dropna(axis=0, thresh=len(gogo_sim_matrix) // 2, inplace=True)
+        gogo_sim_matrix.dropna(axis=1, thresh=len(gogo_sim_matrix) // 2, inplace=True)
         gogo_sim_matrix.to_csv(similarity_output_matrix_path)
 
         return similarity_output_matrix_path
@@ -132,7 +248,7 @@ class SimilarityAnalyser:
         return gos
 
     def _parse_gogo_output(self, output_file_path):
-        gogo_output_df = pd.read_csv(output_file_path, sep=' ',names=['GPCR1', 'GPCR2', '_BPO', 'BPO', '_CCO', 'CCO', '_MFO','MFO'])
+        gogo_output_df = pd.read_csv(output_file_path, sep=' ', names=['GPCR1', 'GPCR2', '_BPO', 'BPO', '_CCO', 'CCO', '_MFO', 'MFO'])
         gogo_output_df.drop(columns=['BPO', 'CCO', '_BPO', '_CCO', '_MFO'], inplace=True)
         return gogo_output_df
 
