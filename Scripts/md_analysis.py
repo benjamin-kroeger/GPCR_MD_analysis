@@ -107,10 +107,10 @@ def main(args):
     if args.method == 'tm_align':
         assert args.pdb_files is not None, "Pdb file path is missing"
         volume_overlap_filename = extractor.compute_similarity_tmalign(pdb_files=args.pdb_files)
-        suffix = 'tmali'
+        suffix = 'tm_align'
     if args.method == 'gogo':
         assert args.pdb_files is not None, "Pdb file path is missing"
-        volume_overlap_filename = extractor.compute_similarity_go(pdb_file_dir=args.pdb_files)
+        volume_overlap_filename = extractor.compute_similarity_go(pdb_files=args.pdb_files)
         suffix = 'GOGO'
     if args.method == 'vmd':
         assert args.pdb_files is not None, "Pdb file path is missing"

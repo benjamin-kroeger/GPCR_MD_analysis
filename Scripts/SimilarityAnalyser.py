@@ -30,12 +30,15 @@ class SimilarityAnalyser:
     def __init__(self):
         self.tmalign_path = "/home/benjaminkroeger/Documents/Master/Master_2_Semester/Internship/TMalign"
         self.gogo_path = "/home/benjaminkroeger/Downloads/GOGO_master"
-        with open('CCC.tcl', 'r') as tcl_script_handle:
-            self.tcl_script = '\n'.join(tcl_script_handle.readlines())
+        self.output_dir = "output_dir"
+
+        if not os.path.isdir(self.output_dir):
+            os.mkdir(self.output_dir)
 
     def compute_similaritiy_vmd(self, pdb_files: str) -> str:
-        triplet_output_path = 'output_dir/output_triplets_vmd.csv'
-        similarity_output_matrix_path = 'output_dir/output_vmd_simliarity.csv'
+        triplet_output_path = os.path.join(self.output_dir,'output_triplets_vmd.csv')
+        similarity_output_matrix_path = os.path.join(self.output_dir,'output_vmd_simliarity.csv')
+
         assert os.path.isdir(pdb_files), "The directory to the pdb files does not exist"
         tmp_dir = tempfile.TemporaryDirectory()
         print(tmp_dir.name)
@@ -135,8 +138,8 @@ class SimilarityAnalyser:
             return [float(x) for x in scores]
 
     def compute_similarity_tmalign(self, pdb_files: str) -> str:
-        triplet_output_path = 'output_dir/output_triplets_min.csv'
-        similarity_output_matrix_path = 'output_dir/output_tmalign_simliarity_min.csv'
+        triplet_output_path = os.path.join(self.output_dir,'output_triplets_min.csv')
+        similarity_output_matrix_path = os.path.join(self.output_dir,'output_tmalign_simliarity_min.csv')
         if os.path.exists(similarity_output_matrix_path):
             return similarity_output_matrix_path
 
@@ -190,11 +193,11 @@ class SimilarityAnalyser:
 
         return similarity_matrix
 
-    def compute_similarity_go(self, pdb_file_dir: str):
-        similarity_output_matrix_path = 'output_dir/output_gogo_simliarity.csv'
+    def compute_similarity_go(self, pdb_files: str):
+        similarity_output_matrix_path = os.path.join(self.output_dir,'output_gogo_simliarity.csv')
         pdb_ids = set()
         name_pattern = re.compile(r'[A-Z0-9]{3,5}')
-        for file in os.listdir(pdb_file_dir):
+        for file in os.listdir(pdb_files):
             name = re.findall(name_pattern, file)[0]
             pdb_ids.add(name)
 
@@ -266,7 +269,7 @@ class SimilarityAnalyser:
         return min(scores)
 
     def compute_similarity_volume_overlap(self, working_dir: str, md_frames: str) -> str:
-        similarity_matrix_path = 'output_dir/output_phase_vol.csv'
+        similarity_matrix_path = os.path.join(self.output_dir,'output_phase_vol.csv')
         if os.path.exists(similarity_matrix_path):
             return similarity_matrix_path
 
