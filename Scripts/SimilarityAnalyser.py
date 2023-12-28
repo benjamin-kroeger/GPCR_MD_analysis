@@ -7,6 +7,7 @@ import subprocess
 import tempfile
 from concurrent.futures import ProcessPoolExecutor, as_completed, wait
 from datetime import datetime
+from glob import glob
 from io import StringIO
 
 import numpy as np
@@ -27,15 +28,16 @@ voltool correlate -i1 {0} -i2 {1}
 
 class SimilarityAnalyser:
 
-    def __init__(self):
-        self.tmalign_path = "/home/benjaminkroeger/Documents/Master/Master_2_Semester/Internship/TMalign"
-        self.gogo_path = "/home/benjaminkroeger/Downloads/GOGO_master"
-        self.output_dir = "output_dir"
+    def __init__(self,tm_align_path:str,gogo_dir_path:str,output_dir:str):
+        self.tmalign_path = tm_align_path
+        self.gogo_path = gogo_dir_path
+        self.output_dir = output_dir
 
         if not os.path.isdir(self.output_dir):
             os.mkdir(self.output_dir)
 
     def compute_similaritiy_vmd(self, pdb_files: str) -> str:
+        assert subprocess.run(["vmd", "-h"], capture_output=True, check=True).returncode == 0, "Vmd is not working"
         triplet_output_path = os.path.join(self.output_dir,'output_triplets_vmd.csv')
         similarity_output_matrix_path = os.path.join(self.output_dir,'output_vmd_simliarity.csv')
 
@@ -138,6 +140,7 @@ class SimilarityAnalyser:
             return [float(x) for x in scores]
 
     def compute_similarity_tmalign(self, pdb_files: str) -> str:
+        assert os.path.isfile(self.tmalign_path), "The tm_align executable was not found"
         triplet_output_path = os.path.join(self.output_dir,'output_triplets_min.csv')
         similarity_output_matrix_path = os.path.join(self.output_dir,'output_tmalign_simliarity_min.csv')
         if os.path.exists(similarity_output_matrix_path):
@@ -194,6 +197,7 @@ class SimilarityAnalyser:
         return similarity_matrix
 
     def compute_similarity_go(self, pdb_files: str):
+        assert os.path.isdir(self.gogo_path) and len([x for x in glob(os.path.join(self.gogo_path, '*')) if 'gene' in x]) == 4, 'Gogo is not usable'
         similarity_output_matrix_path = os.path.join(self.output_dir,'output_gogo_simliarity.csv')
         pdb_ids = set()
         name_pattern = re.compile(r'[A-Z0-9]{3,5}')

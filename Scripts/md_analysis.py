@@ -16,12 +16,14 @@ SCHRODINGER = os.environ.get('SCHRODINGER', '/opt/schrodinger2023-2')
 def parse_args():
     parser = ArgumentParser()
 
-    parser.add_argument('--method',type=str,required=True)
+    parser.add_argument('--method', type=str, required=True)
     parser.add_argument('--md_frames', type=str, help='Path to the md frames. Exclusive with pdb files')
     parser.add_argument('--pdb_files', type=str, help='Path to a folder with all pdb files. Exclusive with md frames')
     parser.add_argument('--working-dir', type=str, help='Path to a dir where the fiels shall be stored')
-    parser.add_argument('--skip_vol_calc', action='store_true', default=False)
-
+    parser.add_argument('--tm_align_path', type=str, required=False,
+                        default="/home/benjaminkroeger/Documents/Master/Master_2_Semester/Internship/TMalign")
+    parser.add_argument('--output_dir', required=False, type=str, default="output_dir")
+    parser.add_argument('--gogo_path', type=str, required=False, default="/home/benjaminkroeger/Downloads/GOGO_master")
     args = parser.parse_args()
 
     return args
@@ -36,7 +38,7 @@ def create_clustering(overlap_matrix_name: str):
     new_index[duplicate_mask] = new_index[duplicate_mask] + '.1'
     similarity_matrix.index = new_index
 
-    distance_matrix_values = 1-similarity_matrix.to_numpy()
+    distance_matrix_values = 1 - similarity_matrix.to_numpy()
 
     sns.clustermap(data=distance_matrix_values, method='average')
     plt.show()
@@ -54,9 +56,9 @@ def create_clustering(overlap_matrix_name: str):
     assigned_cluster_df = pd.DataFrame(data=cluster_df, columns=['cluster'], index=similarity_matrix.index)
     assigned_cluster_df.sort_values(by=['cluster'], inplace=True)
     # reorder the dataframe
-    #rows
+    # rows
     similarity_matrix = similarity_matrix.reindex(index=assigned_cluster_df.index)
-    #cols
+    # cols
     similarity_matrix = similarity_matrix[assigned_cluster_df.index]
     # create a new heatmap
     manipulated_similarity_matrix = manipulate_heatmap_data(similarity_matrix.to_numpy(), assigned_cluster_df)
@@ -98,7 +100,9 @@ def create_tsne(ordered_overlap_matrix: pd.DataFrame, cluster_assignments: pd.Da
 def main(args):
     # just one of the ways can be used to generate a similarity matrix
     plt.rcParams["figure.figsize"] = (16, 12)
-    extractor = SimilarityAnalyser()
+    extractor = SimilarityAnalyser(tm_align_path=args.tm_align_path,
+                                   gogo_dir_path=args.gogo_path,
+                                   output_dir=args.output_dir)
 
     if args.method == 'schrödinger':
         assert args.md_frames is not None, "Md frames is missing"
@@ -116,7 +120,6 @@ def main(args):
         assert args.pdb_files is not None, "Pdb file path is missing"
         volume_overlap_filename = extractor.compute_similaritiy_vmd(pdb_files=args.pdb_files)
         suffix = 'vmd'
-
 
     print('Start plotting and clustering')
     similarity_matrix, assigned_clusters = create_clustering(overlap_matrix_name=volume_overlap_filename)
