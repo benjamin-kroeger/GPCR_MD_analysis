@@ -19,7 +19,7 @@ def parse_args():
     parser.add_argument('--method', type=str, required=True)
     parser.add_argument('--md_frames', type=str, help='Path to the md frames. Exclusive with pdb files')
     parser.add_argument('--pdb_files', type=str, help='Path to a folder with all pdb files. Exclusive with md frames')
-    parser.add_argument('--working-dir', type=str, help='Path to a dir where the fiels shall be stored')
+    parser.add_argument('--working-dir', type=str, help='Path to a dir where the fiels shall be stored',required=False)
     parser.add_argument('--tm_align_path', type=str, required=False,
                         default="/home/benjaminkroeger/Documents/Master/Master_2_Semester/Internship/TMalign")
     parser.add_argument('--output_dir', required=False, type=str, default="output_dir")
@@ -123,7 +123,7 @@ def main(args):
 
     print('Start plotting and clustering')
     similarity_matrix, assigned_clusters = create_clustering(overlap_matrix_name=volume_overlap_filename)
-    assigned_clusters.to_csv(f'output_dir/assinged_clusters_{suffix}.csv')
+    assigned_clusters.to_csv(f'{args.output_dir}/assinged_clusters_{suffix}.csv')
     create_tsne(ordered_overlap_matrix=similarity_matrix, cluster_assignments=assigned_clusters)
 
 

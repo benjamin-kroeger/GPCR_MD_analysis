@@ -48,6 +48,7 @@ class SimilarityAnalyser:
 
         if os.path.exists(triplet_output_path):
             triplet_df = pd.read_csv(triplet_output_path, header=None)
+            print(f'Vmd computed triplet file was found at {triplet_output_path}, skipping similarity computation')
         else:
 
             whole_path_pdb_files = [os.path.join(pdb_files, x) for x in files]
