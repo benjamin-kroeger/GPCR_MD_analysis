@@ -18,3 +18,11 @@ An example output would look like this. (using the VMD CCC method)
 ![](example_output/Clustered_similarity_heatmap.png)
 ![](example_output/Dendrogram.png)
 ![](example_output/tSNE_plot.png)
+
+# References
+
+Yang Zhang and Jeffrey Skolnick. “TM-align: a protein structure alignment algorithm based on the TM-score”.
+In: Nucleic Acids Res. 33.7 (Apr. 2005), pp. 2302–2309. issn: 0305-1048. doi: 10.1093/nar/gki524. <br><br>
+Chenguang Zhao and Zheng Wang. “GOGO: An improved algorithm to measure the semantic similarity between
+gene ontology terms”. In: Sci. Rep. 8.15107 (Oct. 2018), pp. 1–10. issn: 2045-2322. doi: 10.1038/s41598-018-
+33219-y.
