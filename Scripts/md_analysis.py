@@ -19,17 +19,19 @@ def parse_args():
     parser.add_argument('--method', type=str, required=True)
     parser.add_argument('--md_frames', type=str, help='Path to the md frames. Exclusive with pdb files')
     parser.add_argument('--pdb_files', type=str, help='Path to a folder with all pdb files. Exclusive with md frames')
-    parser.add_argument('--working-dir', type=str, help='Path to a dir where the fiels shall be stored',required=False)
+    parser.add_argument('--working-dir', type=str, help='Path to a dir where the fiels shall be stored', required=False)
     parser.add_argument('--tm_align_path', type=str, required=False,
                         default="/home/benjaminkroeger/Documents/Master/Master_2_Semester/Internship/TMalign")
     parser.add_argument('--output_dir', required=False, type=str, default="output_dir")
     parser.add_argument('--gogo_path', type=str, required=False, default="/home/benjaminkroeger/Downloads/GOGO_master")
+    parser.add_argument("--num_clusters", type=int, default=7,
+                        help="The number of clusters to use for clustering (default:7). Does not impact similarity computation")
     args = parser.parse_args()
 
     return args
 
 
-def create_clustering(overlap_matrix_name: str):
+def create_clustering(overlap_matrix_name: str,num_clusters:int):
     # read and prepare overlap matrix
     similarity_matrix = pd.read_csv(overlap_matrix_name, index_col=0)
     # Append .1 suffix to duplicates just like pandas does implicitly to cols
@@ -52,7 +54,7 @@ def create_clustering(overlap_matrix_name: str):
     dendrogram(linkage_data)
     plt.show()
     # find the clusters
-    cluster_df = fcluster(linkage_data, t=7, criterion='maxclust')
+    cluster_df = fcluster(linkage_data, t=num_clusters, criterion='maxclust')
     assigned_cluster_df = pd.DataFrame(data=cluster_df, columns=['cluster'], index=similarity_matrix.index)
     assigned_cluster_df.sort_values(by=['cluster'], inplace=True)
     # reorder the dataframe
@@ -122,7 +124,7 @@ def main(args):
         suffix = 'vmd'
 
     print('Start plotting and clustering')
-    similarity_matrix, assigned_clusters = create_clustering(overlap_matrix_name=volume_overlap_filename)
+    similarity_matrix, assigned_clusters = create_clustering(overlap_matrix_name=volume_overlap_filename,num_clusters=args.num_clusters)
     assigned_clusters.to_csv(f'{args.output_dir}/assinged_clusters_{suffix}.csv')
     create_tsne(ordered_overlap_matrix=similarity_matrix, cluster_assignments=assigned_clusters)
 
