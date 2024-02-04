@@ -40,4 +40,5 @@ def remove_frames(cluster_df_frame:pd.DataFrame):
 
 if __name__ == '__main__':
 
-    compare_clustering('output_dir/assinged_clusters_schrö.csv', 'output_dir/assinged_clusters_vmd.csv')
+    compare_clustering('results/output_dir/assinged_clusters_schrö.csv',
+                       'results/output_dir/assinged_clusters_vmd.csv')

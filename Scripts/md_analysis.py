@@ -6,10 +6,10 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 from scipy.cluster.hierarchy import dendrogram, linkage, fcluster
+from sklearn.cluster import KMeans
 from sklearn.manifold import TSNE
-
 from SimilarityAnalyser import SimilarityAnalyser
-
+import fastcluster
 SCHRODINGER = os.environ.get('SCHRODINGER', '/opt/schrodinger2023-2')
 
 
@@ -30,6 +30,30 @@ def parse_args():
 
     return args
 
+def assign_clusters_linkage(distance_matrix_values, org_index)->pd.DataFrame:
+    # create clusters using hirachial linkage
+    # linkage_data = linkage(distance_matrix_values, method='average', optimal_ordering=True)
+    linkage_data = fastcluster.linkage(distance_matrix_values, method='average', metric='euclidean')
+    dendrogram(linkage_data)
+    plt.show()
+    # find the clusters
+    # cluster_df = fcluster(linkage_data, t=num_clusters, criterion='maxclust')
+    cluster_df = fcluster(linkage_data, t=3, criterion='distance')
+    assigned_cluster_df = pd.DataFrame(data=cluster_df, columns=['cluster'], index=org_index)
+    assigned_cluster_df.sort_values(by=['cluster'], inplace=True)
+
+    return assigned_cluster_df
+
+
+def assign_clusters_kmeans(distance_matrix_values, org_index, num_clusters=7):
+    # Perform K-means clustering
+    kmeans_model = KMeans(n_clusters=num_clusters, random_state=42)
+    clusters = kmeans_model.fit_predict(distance_matrix_values)
+
+    assigned_cluster_df = pd.DataFrame(data=clusters + 1, columns=['cluster'], index=org_index)
+    assigned_cluster_df.sort_values(by=['cluster'], inplace=True)
+
+    return assigned_cluster_df
 
 def create_clustering(overlap_matrix_name: str,num_clusters:int):
     # read and prepare overlap matrix
@@ -49,14 +73,8 @@ def create_clustering(overlap_matrix_name: str,num_clusters:int):
     ax = sns.heatmap(similarity_matrix.to_numpy(), xticklabels=False, yticklabels=False)
     ax.set(title='Volume overlap heatmap before clustering')
     plt.show()
-    # create clusters using hirachial linkage
-    linkage_data = linkage(distance_matrix_values, method='average', optimal_ordering=True)
-    dendrogram(linkage_data)
-    plt.show()
-    # find the clusters
-    cluster_df = fcluster(linkage_data, t=num_clusters, criterion='maxclust')
-    assigned_cluster_df = pd.DataFrame(data=cluster_df, columns=['cluster'], index=similarity_matrix.index)
-    assigned_cluster_df.sort_values(by=['cluster'], inplace=True)
+    #assigned_cluster_df = assign_clusters_linkage(distance_matrix_values=distance_matrix_values, org_index=similarity_matrix.index)
+    assigned_cluster_df = assign_clusters_kmeans(distance_matrix_values=distance_matrix_values, org_index=similarity_matrix.index)
     # reorder the dataframe
     # rows
     similarity_matrix = similarity_matrix.reindex(index=assigned_cluster_df.index)
